@@ -37,6 +37,10 @@ uploads/**
 !uploads/.gitkeep
 logs/**
 !logs/.gitkeep
+backend/uploads/**
+!backend/uploads/.gitkeep
+backend/logs/**
+!backend/logs/.gitkeep
 
 # Keep .env files (internal use only)
 # .env files are included for internal deployment
