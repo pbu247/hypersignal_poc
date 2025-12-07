@@ -1,0 +1,42 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+dist/
+build/
+.next/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+.pids
+*.log
+
+# Keep uploads and logs directories but ignore contents
+uploads/**
+!uploads/.gitkeep
+logs/**
+!logs/.gitkeep
+
+# Keep .env files (internal use only)
+# .env files are included for internal deployment

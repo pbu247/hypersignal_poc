@@ -1,0 +1,31 @@
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.9
+
+# Database
+motor==3.3.2
+pymongo==4.6.1
+duckdb==0.10.0
+
+# Data Processing
+pandas==2.2.0
+pyarrow==15.0.0
+openpyxl==3.1.2
+chardet==5.2.0
+numpy==1.26.4
+
+# AI / LLM
+openai==2.9.0
+langchain-community==0.0.20
+tiktoken==0.5.2
+
+# Configuration
+python-dotenv==1.0.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# Utilities
+requests==2.32.5
+aiohttp==3.13.2
+tenacity==8.5.0
