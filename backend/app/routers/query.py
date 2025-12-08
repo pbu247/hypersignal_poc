@@ -26,6 +26,12 @@ class AIAssistRequest(BaseModel):
 class AIAssistResponse(BaseModel):
     query: str
 
+class QueryRecommendRequest(BaseModel):
+    file_id: str
+
+class QueryRecommendResponse(BaseModel):
+    queries: List[str]
+
 
 def validate_select_query(query: str) -> bool:
     """SELECT 쿼리인지 검증"""
@@ -49,6 +55,54 @@ def validate_select_query(query: str) -> bool:
             return False
     
     return True
+
+
+@router.post("/recommend", response_model=QueryRecommendResponse)
+async def recommend_queries(request: QueryRecommendRequest):
+    """파일명/컬럼명 기반 추천 쿼리 10개 반환"""
+    file_metadata = await FileService.get_file_by_id(request.file_id)
+    if not file_metadata:
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+
+    columns = file_metadata.columns
+    col_names = [col.name for col in columns]
+    table = 'data'
+    queries = []
+
+    # 1. 전체 데이터 10개
+    queries.append(f'SELECT * FROM {table} LIMIT 10')
+
+    # 2. 각 컬럼별 집계(최대 3개)
+    for col in col_names[:3]:
+        queries.append(f'SELECT "{col}", COUNT(*) AS "건수" FROM {table} GROUP BY "{col}" ORDER BY "건수" DESC LIMIT 10')
+
+    # 3. 수치형 컬럼에 대해 평균/최대/최소
+    for col in columns:
+        if col.type in ("integer", "float"):
+            queries.append(f'SELECT AVG("{col.name}") AS "평균_{col.name}", MIN("{col.name}") AS "최소_{col.name}", MAX("{col.name}") AS "최대_{col.name}" FROM {table}')
+    # 4. 날짜 컬럼이 있으면 최근 10개
+    if file_metadata.date_column:
+        queries.append(f'SELECT * FROM {table} ORDER BY "{file_metadata.date_column}" DESC LIMIT 10')
+
+    # 5. 첫 번째 컬럼 값별 분포
+    if col_names:
+        queries.append(f'SELECT "{col_names[0]}", COUNT(*) AS "건수" FROM {table} GROUP BY "{col_names[0]}" ORDER BY "건수" DESC LIMIT 10')
+
+    # 6. 두 컬럼 조합별 집계
+    if len(col_names) >= 2:
+        queries.append(f'SELECT "{col_names[0]}", "{col_names[1]}", COUNT(*) AS "건수" FROM {table} GROUP BY "{col_names[0]}", "{col_names[1]}" ORDER BY "건수" DESC LIMIT 10')
+
+    # 7. 특정 값 필터 예시
+    queries.append(f'SELECT * FROM {table} WHERE "{col_names[0]}" = \'특정값\'')
+
+    # 8. NULL 값이 있는 행 찾기
+    queries.append(f'SELECT * FROM {table} WHERE "{col_names[0]}" IS NULL')
+
+    # 9. 중복 행 찾기
+    queries.append(f'SELECT "{col_names[0]}", COUNT(*) FROM {table} GROUP BY "{col_names[0]}" HAVING COUNT(*) > 1')
+
+    # 10개만 반환
+    return QueryRecommendResponse(queries=queries[:10])
 
 
 @router.post("/execute", response_model=QueryExecuteResponse)

@@ -23,16 +23,37 @@ class FileService:
     
     @staticmethod
     def detect_encoding(file_path: str) -> str:
-        """파일 인코딩 감지"""
+        """파일 인코딩 감지 (한국어 우선)"""
         start_time = log_event("file", "detect_encoding_start", file_path=file_path)
+        
+        # 한국어 파일에서 자주 사용되는 인코딩 순서대로 시도
+        encodings_to_try = ['utf-8', 'cp949', 'euc-kr', 'utf-8-sig']
         
         with open(file_path, 'rb') as f:
             raw_data = f.read(100000)  # 첫 100KB 읽기
-            result = chardet.detect(raw_data)
-            encoding = result['encoding']
         
-        log_event("file", "detect_encoding_complete", start_time=start_time, encoding=encoding)
-        return encoding
+        # 먼저 일반적인 인코딩 시도
+        for encoding in encodings_to_try:
+            try:
+                raw_data.decode(encoding)
+                log_event("file", "detect_encoding_complete", start_time=start_time, encoding=encoding)
+                return encoding
+            except (UnicodeDecodeError, LookupError):
+                continue
+        
+        # 위 방법이 실패하면 chardet 사용
+        result = chardet.detect(raw_data)
+        detected_encoding = result['encoding']
+        
+        # chardet이 잘못된 인코딩을 반환할 수 있으므로 검증
+        try:
+            raw_data.decode(detected_encoding)
+            log_event("file", "detect_encoding_complete", start_time=start_time, encoding=detected_encoding)
+            return detected_encoding
+        except (UnicodeDecodeError, LookupError, TypeError):
+            # 최종 fallback
+            log_event("file", "detect_encoding_complete", start_time=start_time, encoding='utf-8')
+            return 'utf-8'
     
     @staticmethod
     def read_file_to_dataframe(file_path: str, filename: str) -> pd.DataFrame:
@@ -44,7 +65,11 @@ class FileService:
         try:
             if file_ext == '.csv':
                 encoding = FileService.detect_encoding(file_path)
-                df = pd.read_csv(file_path, encoding=encoding)
+                try:
+                    df = pd.read_csv(file_path, encoding=encoding)
+                except (UnicodeDecodeError, pd.errors.ParserError):
+                    # 인코딩 실패 시 encoding_errors='replace'로 재시도
+                    df = pd.read_csv(file_path, encoding=encoding, encoding_errors='replace')
             elif file_ext in ['.xlsx', '.xls']:
                 df = pd.read_excel(file_path)
             elif file_ext == '.parquet':

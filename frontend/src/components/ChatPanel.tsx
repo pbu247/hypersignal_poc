@@ -1314,7 +1314,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
               {message.chart_data && (
                 <div className="mt-4 mb-4 p-4 rounded-xl" style={{ backgroundColor: 'white' }}>
-                  <ChartView data={message.chart_data} type="bar" />
+                  <ChartView data={message.chart_data} type={message.chart_data.chart_type} />
                 </div>
               )}
 

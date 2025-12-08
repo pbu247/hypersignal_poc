@@ -1,4 +1,6 @@
+
 import React, { useState, useEffect, useRef } from 'react';
+import './hyperquery-animate.css';
 import { 
   XMarkIcon, 
   PlayIcon, 
@@ -50,9 +52,33 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
   const [showColumnInfo, setShowColumnInfo] = useState(true);
   const [showAiHelper, setShowAiHelper] = useState(true);
   const [queryExecutionTime, setQueryExecutionTime] = useState<number | null>(null);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [generationComplete, setGenerationComplete] = useState(false);
+  const [recommendQueries, setRecommendQueries] = useState<string[]>([]);
+  const [randomQueries, setRandomQueries] = useState<string[]>([]);
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const loadingMoreRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // 추천 쿼리 불러오기 (파일 변경 시)
+  useEffect(() => {
+    if (!isOpen || !fileId) return;
+    fetch(`${API_BASE_URL}/api/query/recommend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.queries) {
+          setRecommendQueries(data.queries);
+          // 2개 랜덤 선택
+          const shuffled = [...data.queries].sort(() => 0.5 - Math.random());
+          setRandomQueries(shuffled.slice(0, 2));
+        }
+      })
+      .catch(() => setRecommendQueries([]));
+  }, [isOpen, fileId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -163,6 +189,8 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
     if (!aiPrompt.trim()) return;
     
     setIsAiLoading(true);
+    setAiGenerating(true);
+    setGenerationComplete(false);
     setError(null);
     
     try {
@@ -185,8 +213,19 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
       const result = await response.json();
       setSqlQuery(result.query);
       setAiPrompt('');
+      
+      // 생성 중 애니메이션 종료 후 완료 애니메이션 시작
+      setAiGenerating(false);
+      setGenerationComplete(true);
+      
+      // 완료 애니메이션 후 상태 초기화
+      setTimeout(() => {
+        setGenerationComplete(false);
+      }, 1000);
     } catch (err: any) {
       setError(err.message);
+      setAiGenerating(false);
+      setGenerationComplete(false);
     } finally {
       setIsAiLoading(false);
     }
@@ -197,7 +236,7 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
   return (
     <>
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-[9999] flex items-center justify-center"
         style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}
       >
         <div
@@ -363,11 +402,22 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
             {/* 중앙: SQL 에디터 & 결과 */}
             <div className="flex-1 flex flex-col gap-4 min-w-0">
               {/* SQL 에디터 */}
-              <div className="border rounded-lg overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+              <div 
+                className={`border rounded-lg overflow-hidden ${aiGenerating ? 'sql-editor-loading' : ''} ${generationComplete ? 'sql-editor-complete' : ''}`}
+                style={{ 
+                  borderColor: aiGenerating || generationComplete ? 'transparent' : 'var(--border)',
+                  transition: 'border-color 0.3s ease'
+                }}
+              >
                 <div className="flex items-center justify-between p-3 border-b" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--background-secondary)' }}>
                   <div className="flex items-center gap-2">
                     <CodeBracketIcon className="w-4 h-4" style={{ color: 'rgb(16, 185, 129)' }} />
                     <span className="text-sm font-semibold" style={{ color: 'var(--text)' }}>SQL 쿼리</span>
+                    {aiGenerating && (
+                      <span className="text-xs px-2 py-0.5 rounded-full animate-pulse" style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: 'rgb(16, 185, 129)' }}>
+                        AI 생성 중...
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={executeQuery}
@@ -593,15 +643,27 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
                     </div>
 
                     <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--background)' }}>
-                      <p className="font-semibold mb-2" style={{ color: 'var(--text)' }}>
-                        <CodeBracketIcon className="w-3.5 h-3.5 inline mr-1" />
-                        예시 쿼리
+                      <p className="font-semibold mb-2 flex items-center gap-1" style={{ color: 'var(--text)' }}>
+                        <CodeBracketIcon className="w-3.5 h-3.5 inline" />
+                        추천 쿼리
                       </p>
-                      <code className="block font-mono text-[10px] p-2 rounded mt-1" style={{ backgroundColor: 'rgba(0,0,0,0.3)', color: 'rgb(16, 185, 129)' }}>
-                        SELECT * FROM data<br />
-                        WHERE "온도(섭씨)" {'>'} 30<br />
-                        LIMIT 100
-                      </code>
+                      {randomQueries.length > 0 ? (
+                        <div className="space-y-2">
+                          {randomQueries.map((q, i) => (
+                            <code
+                              key={i}
+                              className="block font-mono text-[10px] p-2 rounded cursor-pointer hover:bg-emerald-50 transition"
+                              style={{ backgroundColor: 'rgba(0,0,0,0.15)', color: 'rgb(16, 185, 129)' }}
+                              onClick={() => setSqlQuery(q)}
+                              title="클릭 시 쿼리 입력창에 복사"
+                            >
+                              {q}
+                            </code>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">추천 쿼리를 불러오는 중...</span>
+                      )}
                     </div>
 
                     <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--background)' }}>
@@ -637,8 +699,8 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
       {/* 확인 모달 */}
       {showConfirmClose && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center"
-          style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)' }}
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)', zIndex: 10000 }}
         >
           <div
             className="relative w-full max-w-md p-6 rounded-xl"

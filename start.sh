@@ -29,14 +29,13 @@ sleep 3
 echo "[INFO] Backend 시작 중..."
 cd "$PROJECT_DIR/backend"
 
-# 가상환경 활성화 및 패키지 설치
+# 가상환경 확인
 if [ ! -d "venv" ]; then
-    echo "가상환경 생성 중..."
-    python3.12 -m venv venv
+    echo "[ERROR] 가상환경이 없습니다. 먼저 ./setup.sh를 실행해주세요."
+    exit 1
 fi
 
 source venv/bin/activate
-pip install -q -r requirements.txt
 
 # FastAPI 서버 시작
 cd "$PROJECT_DIR/backend"
@@ -55,8 +54,8 @@ cd "$PROJECT_DIR/frontend"
 
 # 패키지 설치 확인
 if [ ! -d "node_modules" ]; then
-    echo "패키지 설치 중..."
-    npm install
+    echo "[ERROR] Frontend 패키지가 없습니다. 먼저 ./setup.sh를 실행해주세요."
+    exit 1
 fi
 
 # Vite 개발 서버 시작

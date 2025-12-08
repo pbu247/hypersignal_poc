@@ -67,12 +67,38 @@ VITE_API_URL=http://localhost:8000
 EOF
 fi
 
+# Backend venv 생성 및 패키지 설치
+echo "🐍 Creating Python virtual environment..."
+cd backend
+if [ ! -d "venv" ]; then
+    python3.12 -m venv venv
+    echo "✅ Virtual environment created"
+else
+    echo "ℹ️  Virtual environment already exists"
+fi
+
+echo "📦 Installing backend dependencies..."
+source venv/bin/activate
+pip install -q --upgrade pip
+pip install -q -r requirements.txt
+deactivate
+cd ..
+
+# Frontend 패키지 설치
+echo "📦 Installing frontend dependencies..."
+cd frontend
+if [ ! -d "node_modules" ]; then
+    npm install
+    echo "✅ Frontend dependencies installed"
+else
+    echo "ℹ️  Frontend dependencies already installed"
+fi
+cd ..
+
 echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "Next steps:"
 echo "  1. Update backend/.env with your OpenAI API key"
-echo "  2. Install backend dependencies: cd backend && source venv/bin/activate && pip install -r requirements.txt"
-echo "  3. Install frontend dependencies: cd frontend && npm install"
-echo "  4. Start the application: ./start.sh"
+echo "  2. Start the application: ./start.sh"
 echo ""
