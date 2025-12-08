@@ -7,7 +7,9 @@ import {
   TableCellsIcon,
   ChatBubbleLeftRightIcon,
   PresentationChartLineIcon,
-  LightBulbIcon
+  LightBulbIcon,
+  ClipboardDocumentIcon,
+  CheckIcon
 } from '@heroicons/react/24/outline';
 import { PaperAirplaneIcon, SparklesIcon } from '@heroicons/react/24/solid';
 import type { FileMetadata, ChatMessage } from '../types';
@@ -44,6 +46,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [columnSuggestions, setColumnSuggestions] = useState<string[]>([]);
   const [showColumnSuggestions, setShowColumnSuggestions] = useState(false);
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
+  const [copiedSqlIndex, setCopiedSqlIndex] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const suggestionRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -554,7 +557,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     return typeMap[type] || type;
   };
 
-  if (!selectedFile) {
+  if (!selectedFile && !selectedChat) {
     return (
       <div
         className="flex-1 flex items-center justify-center p-8"
@@ -682,6 +685,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       style={{ backgroundColor: 'var(--background)' }}
     >
       {/* File Info Header */}
+      {selectedFile && (
       <div
         className="px-6 py-4 flex items-center justify-between"
         style={{
@@ -772,6 +776,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </button>
         </div>
       </div>
+      )}
 
       {/* Column Info Modal */}
       {showColumnInfo && (
@@ -947,12 +952,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   >
                     {loadingFileData ? (
                       <div className="flex flex-col items-center justify-center py-12">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--primary)', animationDelay: '0s' }} />
-                          <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--primary)', animationDelay: '0.1s' }} />
-                          <div className="w-2 h-2 rounded-full animate-bounce" style={{ backgroundColor: 'var(--primary)', animationDelay: '0.2s' }} />
-                          <span className="text-sm ml-2" style={{ color: 'var(--text-secondary)' }}>데이터 불러오는 중...</span>
-                        </div>
                         <div className="w-64 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--background)' }}>
                           <div
                             className="h-full rounded-full"
@@ -1339,17 +1338,52 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                     <ChevronRightIcon className="w-3.5 h-3.5 transition-transform group-open:rotate-90" />
                     <span className="font-mono">SQL</span>
                   </summary>
-                  <pre
-                    className="mt-3 p-4 rounded-lg text-xs overflow-x-auto font-mono leading-relaxed"
-                    style={{
-                      backgroundColor: message.role === 'user' ? 'rgba(0,0,0,0.15)' : '#f8f9fa',
-                      color: message.role === 'user' ? 'rgba(255,255,255,0.95)' : '#374151',
-                      border: `1px solid ${message.role === 'user' ? 'rgba(255,255,255,0.1)' : '#e5e7eb'}`,
-                      boxShadow: message.role === 'user' ? 'none' : 'inset 0 1px 2px rgba(0,0,0,0.03)',
-                    }}
-                  >
-                    {message.sql_query}
-                  </pre>
+                  <div className="relative mt-3">
+                    <pre
+                      className="p-4 rounded-lg text-xs overflow-x-auto font-mono leading-relaxed"
+                      style={{
+                        backgroundColor: message.role === 'user' ? 'rgba(0,0,0,0.15)' : '#f8f9fa',
+                        color: message.role === 'user' ? 'rgba(255,255,255,0.95)' : '#374151',
+                        border: `1px solid ${message.role === 'user' ? 'rgba(255,255,255,0.1)' : '#e5e7eb'}`,
+                        boxShadow: message.role === 'user' ? 'none' : 'inset 0 1px 2px rgba(0,0,0,0.03)',
+                      }}
+                    >
+                      {message.sql_query}
+                    </pre>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(message.sql_query!);
+                        setCopiedSqlIndex(idx);
+                        setTimeout(() => setCopiedSqlIndex(null), 2000);
+                      }}
+                      className="absolute top-2 right-2 p-2 rounded-md transition-all duration-200 hover:scale-110"
+                      style={{
+                        backgroundColor: copiedSqlIndex === idx 
+                          ? 'rgba(34, 197, 94, 0.15)' 
+                          : message.role === 'user' 
+                            ? 'rgba(255,255,255,0.1)' 
+                            : 'rgba(0,0,0,0.04)',
+                        border: `1px solid ${copiedSqlIndex === idx 
+                          ? 'rgba(34, 197, 94, 0.3)' 
+                          : message.role === 'user' 
+                            ? 'rgba(255,255,255,0.2)' 
+                            : 'rgba(0,0,0,0.1)'}`,
+                      }}
+                      title={copiedSqlIndex === idx ? '복사 완료!' : 'SQL 복사'}
+                    >
+                      {copiedSqlIndex === idx ? (
+                        <CheckIcon 
+                          className="w-4 h-4 transition-all duration-200" 
+                          style={{ color: '#22c55e' }}
+                        />
+                      ) : (
+                        <ClipboardDocumentIcon 
+                          className="w-4 h-4" 
+                          style={{ color: message.role === 'user' ? 'rgba(255,255,255,0.7)' : '#6b7280' }}
+                        />
+                      )}
+                    </button>
+                  </div>
                 </details>
               )}
 
@@ -1453,6 +1487,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           backgroundColor: 'var(--background)',
         }}
       >
+        {!selectedFile && selectedChat ? (
+          <div className="p-4 rounded-xl text-center" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            <p className="text-sm font-medium" style={{ color: 'rgb(239, 68, 68)' }}>
+              ⚠️ 파일이 삭제되어 새로운 질문을 할 수 없습니다. 기록은 읽기 전용으로 제공됩니다.
+            </p>
+          </div>
+        ) : (
+          <>
         <div className="flex gap-3 items-center">
           <div className="flex-1 relative">
             <textarea
@@ -1461,7 +1503,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               onChange={handleInputChange}
               onKeyDown={handleKeyPress}
               placeholder="데이터에 대해 질문해보세요... (Tab: 자동완성, Enter: 전송, Shift+Enter: 줄바꾸기)"
-              disabled={loading}
+              disabled={loading || (!selectedFile && selectedChat)}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
@@ -1565,27 +1607,27 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {/* 보내기 버튼 - 우측에 고정 */}
           <button
             onClick={handleSend}
-            disabled={loading || !input.trim()}
+            disabled={loading || !input.trim() || (!selectedFile && selectedChat)}
             className={`rounded-full font-medium transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg shrink-0 ${loading ? 'signal-pulse' : ''}`}
             style={{
-              background: loading || !input.trim()
+              background: loading || !input.trim() || (!selectedFile && selectedChat)
                 ? 'var(--border)'
                 : 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
               color: 'white',
-              cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
+              cursor: loading || !input.trim() || (!selectedFile && selectedChat) ? 'not-allowed' : 'pointer',
               height: '48px',
               width: '48px',
               position: 'relative',
               zIndex: 10,
             }}
             onMouseEnter={(e) => {
-              if (!loading && input.trim()) {
+              if (!loading && input.trim() && (selectedFile || !selectedChat)) {
                 e.currentTarget.style.background = 'linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%)';
                 e.currentTarget.style.transform = 'scale(1.05)';
               }
             }}
             onMouseLeave={(e) => {
-              if (!loading && input.trim()) {
+              if (!loading && input.trim() && (selectedFile || !selectedChat)) {
                 e.currentTarget.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)';
                 e.currentTarget.style.transform = 'scale(1)';
               }
@@ -1594,6 +1636,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <PaperAirplaneIcon className="w-4 h-4" style={{ position: 'relative', zIndex: 1 }} />
           </button>
         </div>
+        </>
+        )}
       </div>
 
       {/* HyperQuery Modal */}
@@ -1609,6 +1653,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             type: col.type,
             sample_values: col.sample_values || []
           }))}
+          recommendedPrompts={selectedFile.recommended_prompts || []}
         />
       )}
     </div>

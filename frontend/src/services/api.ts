@@ -33,6 +33,11 @@ export const filesApi = {
     const response = await api.get(API_ENDPOINTS.getFileData(fileId, limit));
     return response.data;
   },
+
+  delete: async (fileId: string): Promise<{ message: string }> => {
+    const response = await api.delete(API_ENDPOINTS.getFile(fileId));
+    return response.data;
+  },
 };
 
 // Chat API
@@ -127,6 +132,11 @@ export const chatApi = {
 
   getAllChats: async (): Promise<{ chats: ChatSummary[] }> => {
     const response = await api.get(API_ENDPOINTS.getAllChats);
+    return response.data;
+  },
+
+  delete: async (chatId: string): Promise<{ message: string }> => {
+    const response = await api.delete(`/api/chat/history/${chatId}`);
     return response.data;
   },
 };

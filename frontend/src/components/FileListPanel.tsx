@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { 
   ArrowUpTrayIcon, 
-  DocumentTextIcon, 
+  DocumentTextIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import type { FileMetadata } from '../types';
 import { filesApi } from '../services/api';
@@ -11,6 +12,7 @@ interface FileListPanelProps {
   selectedFile: FileMetadata | null;
   onFileSelect: (file: FileMetadata) => void;
   onFileUploaded: () => void;
+  onFileDeleted: () => void;
 }
 
 const FileListPanel: React.FC<FileListPanelProps> = ({
@@ -18,9 +20,13 @@ const FileListPanel: React.FC<FileListPanelProps> = ({
   selectedFile,
   onFileSelect,
   onFileUploaded,
+  onFileDeleted,
 }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; name: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -53,6 +59,29 @@ const FileListPanel: React.FC<FileListPanelProps> = ({
       setUploading(false);
       setUploadProgress(0);
       alert('파일 업로드에 실패했습니다.');
+    }
+  };
+
+  const handleFileDelete = async (fileId: string, fileName: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // 파일 선택 이벤트 방지
+    setFileToDelete({ id: fileId, name: fileName });
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!fileToDelete) return;
+
+    try {
+      setDeletingFileId(fileToDelete.id);
+      await filesApi.delete(fileToDelete.id);
+      setShowDeleteConfirm(false);
+      setFileToDelete(null);
+      onFileDeleted(); // 파일 목록 새로고침
+    } catch (error) {
+      console.error('File deletion failed:', error);
+      alert('파일 삭제에 실패했습니다.');
+    } finally {
+      setDeletingFileId(null);
     }
   };
 
@@ -161,10 +190,10 @@ const FileListPanel: React.FC<FileListPanelProps> = ({
               return fileList.map((file, versionIndex) => {
                 const versionNumber = fileList.length - versionIndex;
                 return (
-                  <button
+                  <div
                     key={file.file_id}
                     onClick={() => onFileSelect(file)}
-                    className="w-full px-3 py-2.5 text-left transition-all duration-200"
+                    className="w-full px-3 py-2.5 text-left transition-all duration-200 group relative cursor-pointer"
                     style={{
                       backgroundColor: selectedFile?.file_id === file.file_id ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
                       borderLeft: selectedFile?.file_id === file.file_id ? '4px solid var(--primary)' : '4px solid transparent',
@@ -201,6 +230,28 @@ const FileListPanel: React.FC<FileListPanelProps> = ({
                           v{versionNumber}
                         </span>
                       )}
+                      <button
+                        onClick={(e) => handleFileDelete(file.file_id, file.filename, e)}
+                        disabled={deletingFileId === file.file_id}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded transition-all duration-200 shrink-0"
+                        style={{
+                          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                          color: 'rgb(239, 68, 68)',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.1)';
+                        }}
+                        title="파일 삭제"
+                      >
+                        {deletingFileId === file.file_id ? (
+                          <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <XMarkIcon className="w-3 h-3" />
+                        )}
+                      </button>
                     </div>
                     <div 
                       className="text-xs ml-6"
@@ -210,13 +261,90 @@ const FileListPanel: React.FC<FileListPanelProps> = ({
                       <div className="mt-0.5">{formatFileSize(file.file_size)}</div>
                       <div className="mt-0.5">{new Date(file.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                     </div>
-                  </button>
+                  </div>
                 );
               });
             })}
           </div>
         )}
       </div>
+
+      {/* 삭제 확인 모달 */}
+      {showDeleteConfirm && fileToDelete && (
+        <div
+          className="fixed inset-0 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.9)', zIndex: 10000 }}
+        >
+          <div
+            className="relative w-full max-w-md p-6 rounded-xl"
+            style={{
+              backgroundColor: 'var(--background)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <h3 className="text-lg font-bold mb-2" style={{ color: 'var(--text)' }}>
+              파일을 삭제하시겠습니까?
+            </h3>
+            <p className="text-sm mb-2" style={{ color: 'var(--text)' }}>
+              <span className="font-semibold" style={{ color: 'var(--primary)' }}>
+                {fileToDelete.name}
+              </span>
+            </p>
+            <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
+              삭제된 파일은 되돌릴 수 없습니다.
+            </p>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setFileToDelete(null);
+                }}
+                disabled={deletingFileId !== null}
+                className="px-5 py-2.5 rounded-lg font-medium text-sm transition-all"
+                style={{
+                  backgroundColor: 'var(--background-secondary)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  cursor: deletingFileId !== null ? 'not-allowed' : 'pointer',
+                  opacity: deletingFileId !== null ? 0.5 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (deletingFileId === null) {
+                    e.currentTarget.style.backgroundColor = 'var(--border)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (deletingFileId === null) {
+                    e.currentTarget.style.backgroundColor = 'var(--background-secondary)';
+                  }
+                }}
+              >
+                취소
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deletingFileId !== null}
+                className="px-5 py-2.5 rounded-lg font-semibold text-sm transition-all flex items-center gap-2"
+                style={{
+                  background: deletingFileId !== null
+                    ? 'rgba(239, 68, 68, 0.5)'
+                    : 'linear-gradient(135deg, rgb(239, 68, 68) 0%, rgb(220, 38, 38) 100%)',
+                  color: 'white',
+                  boxShadow: deletingFileId !== null ? 'none' : '0 2px 8px rgba(239, 68, 68, 0.3)',
+                  cursor: deletingFileId !== null ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {deletingFileId !== null && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                {deletingFileId !== null ? '삭제 중...' : '삭제'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

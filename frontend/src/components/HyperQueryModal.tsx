@@ -24,6 +24,7 @@ interface HyperQueryModalProps {
     type: string;
     sample_values: any[];
   }>;
+  recommendedPrompts?: string[];
 }
 
 interface QueryResult {
@@ -38,7 +39,8 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
   fileId, 
   fileName,
   rowCount,
-  columns 
+  columns,
+  recommendedPrompts = []
 }) => {
   const [sqlQuery, setSqlQuery] = useState('SELECT * FROM data LIMIT 100');
   const [isExecuting, setIsExecuting] = useState(false);
@@ -609,8 +611,28 @@ const HyperQueryModal: React.FC<HyperQueryModalProps> = ({
                     border: '1px solid var(--border)',
                     height: '120px',
                   }}
-                  placeholder="예: 2023년 온도가 30도 이상인 데이터를 조회해줘"
+                  placeholder={recommendedPrompts[0] || "예: 2023년 온도가 30도 이상인 데이터를 조회해줘"}
                 />
+
+                {recommendedPrompts.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {recommendedPrompts.slice(0, 3).map((prompt, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setAiPrompt(prompt)}
+                        className="text-xs px-2.5 py-1 rounded-full transition-all hover:scale-105"
+                        style={{
+                          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                          color: 'rgb(16, 185, 129)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)'
+                        }}
+                        title="클릭하여 입력"
+                      >
+                        💡 {prompt.length > 30 ? prompt.substring(0, 30) + '...' : prompt}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <button
                   onClick={getAiHelp}

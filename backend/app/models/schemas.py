@@ -31,6 +31,7 @@ class FileMetadata(BaseModel):
     parquet_path: str
     date_column: Optional[str] = None
     is_partitioned: bool = False
+    recommended_prompts: Optional[List[str]] = None  # AI 추천 프롬프트
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

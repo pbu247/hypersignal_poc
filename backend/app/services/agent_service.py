@@ -916,3 +916,45 @@ SELECT ...
                 "주요 특징을 분석해주세요",
                 "데이터의 패턴을 찾아주세요"
             ]
+    
+    @staticmethod
+    def generate_recommended_prompts(metadata: FileMetadata) -> List[str]:
+        """파일명과 컬럼명 기반 AI 쿼리 추천 프롬프트 생성"""
+        prompts = []
+        
+        col_names = [col.name for col in metadata.columns[:5]]  # 상위 5개 컬럼만 사용
+        
+        # 1. 전체 데이터 조회
+        prompts.append(f"{metadata.filename}의 전체 데이터를 보여줘")
+        
+        # 2. 특정 컬럼 조회
+        if len(col_names) >= 1:
+            prompts.append(f'"{col_names[0]}" 컬럼의 고유 값들을 알려줘')
+        
+        # 3. 집계 쿼리
+        numeric_cols = [col.name for col in metadata.columns if col.type in ("integer", "float")]
+        if numeric_cols:
+            prompts.append(f'"{numeric_cols[0]}"의 평균, 최대, 최소값을 알려줘')
+        
+        # 4. 그룹별 집계
+        if len(col_names) >= 2:
+            prompts.append(f'"{col_names[0]}"별 데이터 개수를 알려줘')
+        
+        # 5. 날짜 기반 쿼리
+        if metadata.date_column:
+            prompts.append(f'최근 10개 데이터를 "{metadata.date_column}" 기준으로 보여줘')
+        
+        # 6. 조건 필터링
+        if len(col_names) >= 1:
+            sample = metadata.columns[0].sample_values[0] if metadata.columns[0].sample_values else "특정값"
+            prompts.append(f'"{col_names[0]}"이(가) {sample}인 데이터만 조회해줘')
+        
+        # 7. 다중 컬럼 조합
+        if len(col_names) >= 3:
+            prompts.append(f'"{col_names[0]}", "{col_names[1]}", "{col_names[2]}" 컬럼만 보여줘')
+        
+        # 8. NULL 체크
+        if len(col_names) >= 1:
+            prompts.append(f'"{col_names[0]}"이(가) 비어있는 데이터를 찾아줘')
+        
+        return prompts[:5]  # 상위 5개만 반환

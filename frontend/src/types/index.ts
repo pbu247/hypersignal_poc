@@ -16,6 +16,7 @@ export interface FileMetadata {
   parquet_path: string;
   date_column?: string;
   is_partitioned: boolean;
+  recommended_prompts?: string[];
   created_at: string;
   updated_at: string;
 }

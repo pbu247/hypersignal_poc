@@ -403,3 +403,25 @@ async def get_all_chats():
     except Exception as e:
         log_event("api", "get_all_chats_error", start_time=start_time, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/history/{chat_id}")
+async def delete_chat(chat_id: str):
+    """대화 삭제"""
+    start_time = log_event("api", "delete_chat_start", chat_id=chat_id)
+    
+    try:
+        collection = get_collection("chat_history")
+        result = await collection.delete_one({"chat_id": chat_id})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="대화를 찾을 수 없습니다.")
+        
+        log_event("api", "delete_chat_complete", start_time=start_time)
+        return {"message": "대화가 삭제되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_event("api", "delete_chat_error", start_time=start_time, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

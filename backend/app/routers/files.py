@@ -7,6 +7,7 @@ from typing import List
 
 from app.models.schemas import FileMetadata, FileUploadResponse, ColumnInfo
 from app.services.file_service import FileService
+from app.services.agent_service import DataAgent
 from app.utils.logger import log_event
 
 router = APIRouter()
@@ -56,6 +57,10 @@ async def upload_file(file: UploadFile = File(...)):
             date_column=date_column,
             is_partitioned=is_partitioned
         )
+        
+        # AI 추천 프롬프트 생성
+        recommended_prompts = DataAgent.generate_recommended_prompts(metadata)
+        metadata.recommended_prompts = recommended_prompts
         
         # 메타데이터 저장
         await FileService.save_metadata(metadata)
@@ -142,4 +147,25 @@ async def get_file_data(file_id: str, limit: int = 30):
         raise
     except Exception as e:
         log_event("api", "get_file_data_error", start_time=start_time, error=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{file_id}")
+async def delete_file(file_id: str):
+    """파일 삭제 (파일 + 메타데이터)"""
+    start_time = log_event("api", "delete_file_start", file_id=file_id)
+    
+    try:
+        success = await FileService.delete_file(file_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+        
+        log_event("api", "delete_file_complete", start_time=start_time)
+        return {"message": "파일이 삭제되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_event("api", "delete_file_error", start_time=start_time, error=str(e))
         raise HTTPException(status_code=500, detail=str(e))

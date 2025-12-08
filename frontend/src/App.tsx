@@ -47,9 +47,13 @@ function App() {
       const file = files.find(f => f.file_id === history.file_id);
       if (file) {
         setSelectedFile(file);
+      } else {
+        // 파일이 삭제된 경우에도 대화 내용은 볼 수 있도록 함 (읽기 전용)
+        setSelectedFile(null);
       }
     } catch (error) {
       console.error('Failed to load chat history:', error);
+      setSelectedChat(null);
     }
   };
 
@@ -61,6 +65,21 @@ function App() {
   const handleFileUploaded = async () => {
     const filesData = await filesApi.list();
     setFiles(filesData.files);
+  };
+
+  const handleFileDeleted = async () => {
+    // 파일 삭제 후 목록 새로고침 및 선택 해제
+    const filesData = await filesApi.list();
+    setFiles(filesData.files);
+    setSelectedFile(null);
+    setSelectedChat(null);
+  };
+
+  const handleChatDeleted = async () => {
+    // 대화 삭제 후 목록 새로고침 및 선택 해제
+    const chatsData = await chatApi.getAllChats();
+    setChats(chatsData.chats);
+    setSelectedChat(null);
   };
 
   const handleChatCreated = async (chatId: string) => {
@@ -97,12 +116,14 @@ function App() {
     <div className="app">
       <Header />
       <div className="flex-1 flex overflow-hidden">
-        {/* 왼쪽: 채팅 히스토리 */}
+        {/* 왼쪽: 대화 목록 */}
         <ChatHistoryPanel
           chats={chats}
+          files={files}
           selectedChat={selectedChat}
           onChatSelect={handleChatSelect}
           onNewChat={handleNewChat}
+          onChatDeleted={handleChatDeleted}
         />
 
         {/* 가운데: 채팅창 */}
@@ -118,6 +139,7 @@ function App() {
           selectedFile={selectedFile}
           onFileSelect={handleFileSelect}
           onFileUploaded={handleFileUploaded}
+          onFileDeleted={handleFileDeleted}
         />
       </div>
     </div>
