@@ -12,6 +12,8 @@ import {
   ArcElement,
   Filler,
 } from 'chart.js';
+// @ts-ignore
+import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 
 ChartJS.register(
@@ -24,7 +26,8 @@ ChartJS.register(
   Tooltip,
   Legend,
   ArcElement,
-  Filler
+  Filler,
+  ChartDataLabels
 );
 
 interface ChartData {
@@ -147,6 +150,30 @@ const ChartView: React.FC<ChartViewProps> = ({ data, type }) => {
       intersect: false,
     },
     plugins: {
+      // TO-DO 4: 차트에 데이터 라벨 항상 표시
+      datalabels: {
+        display: true,
+        color: '#374151',
+        font: {
+          size: 11,
+          weight: '600',
+        },
+        formatter: (value: number) => {
+          if (chartType === 'pie') {
+            // 파이 차트는 백분율 표시
+            return '';  // 파이 차트는 tooltip에서만 표시
+          }
+          // 숫자 포맷팅
+          return new Intl.NumberFormat('ko-KR', {
+            notation: value > 10000 ? 'compact' : 'standard',
+            maximumFractionDigits: 1
+          }).format(value);
+        },
+        anchor: chartType === 'bar' ? 'end' as const : 'top' as const,
+        align: chartType === 'bar' ? 'end' as const : 'top' as const,
+        offset: 4,
+        clamp: true,
+      },
       legend: {
         position: 'top' as const,
         labels: {
